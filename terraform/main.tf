@@ -1,5 +1,5 @@
 provider "aws" {
-  region = "us-west-1"
+  region = "us-east-1"
 }
 
 resource "aws_iam_role" "pricing_demo" {
@@ -96,9 +96,38 @@ resource "aws_security_group" "pricing_demo" {
   }
 }
 
+################################################################################
+#My work starts here
+
+#Lambda function
 resource "aws_lambda_function" "pricing_demo" {
-  # TODO: implement function
+  function_name    = "pricing_demo"
+  role             = aws_iam_role.pricing_demo.arn
+  handler          = "pricing.handler"
+  runtime          = "python3.8"
+  filename         = data.archive_file.zip.output_path
+  source_code_hash = filebase64sha256(data.archive_file.zip.output_path)
 }
+
+#Zip python code
+data "archive_file" "zip" {
+  type        = "zip"
+  source_dir  = "${path.module}/lambda/"
+  output_path = "${path.module}/pricing.zip"
+}
+
+#Lambda function url
+resource "aws_lambda_function_url" "pricing_demo" {
+  function_name      = aws_lambda_function.pricing_demo.function_name
+  authorization_type = "NONE"
+}
+
+output "function_url" {
+  value = aws_lambda_function_url.pricing_demo.function_url
+}
+
+#My work ends here
+#################################################################################
 
 resource "aws_cloudwatch_metric_alarm" "pricing_demo_errors" {
   alarm_name          = "pricing_demo_errors"
